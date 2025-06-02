@@ -2,31 +2,47 @@
 echo Updating repository...
 cd %~dp0
 
-echo Committing changes...
+echo Adding all files...
 git add .
-git commit -m "Update deployment configuration"
+
+echo Committing changes...
+git commit -m "Update deployment configuration with requirements.txt"
+
+echo Pushing to GitHub...
 git push
 
-echo Done! Now you can deploy:
-echo Backend: https://dashboard.render.com/new
-echo Frontend: https://vercel.com/new
+if errorlevel 1 (
+    echo Error occurred while pushing to GitHub
+    pause
+    exit /b 1
+)
+
 echo.
-echo Steps for Render (Backend):
-echo 1. Click New Web Service
-echo 2. Connect your GitHub repository
-echo 3. Select the repository
-echo 4. Use these settings:
+echo Successfully updated repository!
+echo.
+echo Next steps for deployment:
+echo.
+echo 1. Backend (Render):
+echo    Open: https://dashboard.render.com/new
+echo    - Click "New Web Service"
+echo    - Connect GitHub repository
 echo    - Name: emotion-detection-api
+echo    - Root Directory: ./
 echo    - Runtime: Python
 echo    - Build Command: pip install -r requirements.txt
 echo    - Start Command: cd backend/src ^&^& uvicorn main:app --host 0.0.0.0 --port $PORT
 echo.
-echo Steps for Vercel (Frontend):
-echo 1. Import your GitHub repository
-echo 2. Configure the project:
-echo    - Framework: Create React App
+echo 2. Frontend (Vercel):
+echo    Open: https://vercel.com/new
+echo    - Import your GitHub repository
 echo    - Root Directory: frontend
-echo    - Build Command: npm run build
-echo    - Output Directory: build
+echo    - Framework: Create React App
+echo    - Environment Variables:
+echo      REACT_APP_API_URL=https://[your-render-service-name].onrender.com
+echo.
+echo After deployment:
+echo 1. Copy your Render backend URL
+echo 2. Add it to Vercel frontend environment variables
+echo 3. Redeploy the frontend
 echo.
 pause
