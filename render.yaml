@@ -1,11 +1,10 @@
 services:
   - type: web
     name: emotion-detection-api
-    env: docker
-    dockerfilePath: ./Dockerfile
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.src.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PORT
-        value: "80"
       - key: PYTHON_VERSION
-        value: "3.8.10"
+        value: 3.8.10
     healthCheckPath: /
