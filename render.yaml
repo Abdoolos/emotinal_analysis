@@ -3,9 +3,16 @@ services:
     name: emotion-detection-api
     env: python
     runtime: python3
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      python -m pip install --upgrade pip
+      pip install setuptools==57.5.0 wheel==0.37.1
+      pip install -r requirements.txt
     startCommand: cd backend/src && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.8.10
+      - key: PYTHONPATH
+        value: .
+      - key: PIP_NO_BINARY
+        value: numpy
     healthCheckPath: /
