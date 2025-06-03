@@ -1,27 +1,32 @@
-FROM python:3.8.10-slim
-
-WORKDIR /app
+FROM python:3.8.10
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
+    curl \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements files first for better caching
+WORKDIR /app
+
+# Install Python build tools
+RUN pip install --no-cache-dir \
+    setuptools==57.5.0 \
+    wheel==0.37.1 \
+    pip==23.3.1
+
+# Install dependencies in layers for better caching
 COPY requirements.txt .
-COPY backend/requirements.txt backend/
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Python dependencies
-RUN python -m pip install --upgrade pip && \
-    pip install setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+# Copy application code
+COPY backend/ backend/
+COPY runtime.txt .
 
-# Copy the rest of the application
-COPY . .
-
-# Set Python path
-ENV PYTHONPATH=/app
+# Set environment variables
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1
 
 # Start the application
-CMD uvicorn backend.src.main:app --host 0.0.0.0 --port ${PORT:-80}
+CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "80"]
