@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 class EmotionClassifier:
     def __init__(self):
-        # Using a multilingual model that supports Arabic
-        self.model_name = "CAMeL-Lab/bert-base-arabic-camelbert-mix"
+        # Using a smaller Arabic model
+        self.model_name = "asafaya/bert-mini-arabic"  # Smaller model
         self.tokenizer = None
         self.model = None
         self.max_retries = 3
@@ -31,106 +31,97 @@ class EmotionClassifier:
             'محايد'   # neutral
         ]
         
-        # Initialize the model with optimizations
-        self.initialize_model()
+        # Initialize only the tokenizer
+        self.initialize_tokenizer()
         
-    def initialize_model(self):
-        """Initialize the model with retries and error handling"""
+    def initialize_tokenizer(self):
+        """Initialize only the tokenizer to save memory"""
         for attempt in range(self.max_retries):
             try:
-                logger.info(f"Attempting to load model (attempt {attempt + 1}/{self.max_retries})")
-                
-                # Clear memory
-                gc.collect()
-                torch.cuda.empty_cache() if torch.cuda.is_available() else None
-                
-                # Load tokenizer with memory optimization
+                logger.info("Loading tokenizer...")
                 if self.tokenizer is None:
                     self.tokenizer = AutoTokenizer.from_pretrained(
                         self.model_name,
                         local_files_only=False,
-                        cache_dir=self.cache_dir,
-                        low_cpu_mem_usage=True
+                        cache_dir=self.cache_dir
                     )
-                
-                # Load model with memory optimization
-                if self.model is None:
-                    self.model = AutoModelForSequenceClassification.from_pretrained(
-                        self.model_name,
-                        num_labels=7,
-                        local_files_only=False,
-                        cache_dir=self.cache_dir,
-                        low_cpu_mem_usage=True,
-                        torch_dtype=torch.float32
-                    )
-                    
-                    # Move model to CPU explicitly and optimize memory
-                    self.model.to('cpu')
-                    self.model.eval()  # Set to evaluation mode
-                
-                logger.info("Model loaded successfully")
                 return True
-                
             except Exception as e:
-                logger.error(f"Error loading model: {str(e)}")
+                logger.error(f"Error loading tokenizer: {str(e)}")
                 if attempt < self.max_retries - 1:
-                    logger.info(f"Retrying in {self.retry_delay} seconds...")
                     time.sleep(self.retry_delay)
                 else:
-                    logger.error("Failed to load model after all attempts")
-                    raise RuntimeError("Failed to initialize the emotion classifier model")
+                    raise RuntimeError("Failed to initialize tokenizer")
+
+    def load_model(self):
+        """Load the model only when needed"""
+        try:
+            logger.info("Loading model...")
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                self.model_name,
+                num_labels=7,
+                local_files_only=False,
+                cache_dir=self.cache_dir,
+                low_cpu_mem_usage=True,
+                torch_dtype=torch.float32
+            )
+            self.model.to('cpu')
+            self.model.eval()
+            logger.info("Model loaded successfully")
+        except Exception as e:
+            logger.error(f"Error loading model: {str(e)}")
+            raise RuntimeError("Failed to load model")
+
+    def unload_model(self):
+        """Unload the model to free memory"""
+        if self.model is not None:
+            del self.model
+            self.model = None
+            gc.collect()
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            logger.info("Model unloaded")
 
     def preprocess_text(self, text: str) -> str:
         """Preprocess text for Arabic language handling"""
-        # Remove excessive whitespace
-        text = ' '.join(text.split())
-        return text
+        return ' '.join(text.split())
 
     def predict_emotion(self, text: str) -> Dict[str, float]:
-        """
-        Predict emotions from text with confidence scores
-        Returns a dictionary of emotion labels and their probabilities
-        """
-        if self.model is None or self.tokenizer is None:
-            raise RuntimeError("Model not initialized. Please ensure the model is properly loaded.")
-
+        """Predict emotions with dynamic model loading"""
         try:
-            # Preprocess the text
+            # Load model if not loaded
+            if self.model is None:
+                self.load_model()
+
+            # Preprocess and tokenize
             text = self.preprocess_text(text)
-            
-            # Clear memory before prediction
-            gc.collect()
-            torch.cuda.empty_cache() if torch.cuda.is_available() else None
-            
-            # Tokenize and prepare for model
             inputs = self.tokenizer(
                 text,
                 return_tensors="pt",
                 padding=True,
                 truncation=True,
-                max_length=512
+                max_length=128  # Reduced from 512 to save memory
             )
 
-            # Get model predictions
+            # Get predictions
             with torch.no_grad():
                 outputs = self.model(**inputs)
                 probs = F.softmax(outputs.logits, dim=1)
-                
-            logger.info("Prediction successful")
 
-            # Convert predictions to dictionary
-            predictions = {}
-            for idx, emotion in enumerate(self.emotion_labels):
-                predictions[emotion] = float(probs[0][idx])
+            # Create predictions dictionary
+            predictions = {
+                emotion: float(probs[0][idx])
+                for idx, emotion in enumerate(self.emotion_labels)
+            }
 
-            # Clear memory after prediction
-            del outputs
-            gc.collect()
-            
+            # Unload model to free memory
+            self.unload_model()
+
             return predictions
-            
+
         except Exception as e:
             logger.error(f"Error during prediction: {str(e)}")
+            if self.model is not None:
+                self.unload_model()
             raise RuntimeError(f"Failed to predict emotions: {str(e)}")
 
     def get_dominant_emotion(self, text: str) -> str:
@@ -141,7 +132,7 @@ class EmotionClassifier:
     def get_emotion_summary(self, text: str) -> dict:
         """Get comprehensive emotion analysis"""
         predictions = self.predict_emotion(text)
-        dominant_emotion = self.get_dominant_emotion(text)
+        dominant_emotion = max(predictions.items(), key=lambda x: x[1])[0]
         
         return {
             "text": text,

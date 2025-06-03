@@ -10,6 +10,7 @@ services:
     resources:
       limits:
         memory: 512M
+        swap: 1G
         cpu: 0.5
     envVars:
       - key: PORT
@@ -18,8 +19,16 @@ services:
         value: /tmp/transformers_cache
       - key: TORCH_HOME
         value: /tmp/torch_home
+      - key: TORCH_CUDA_ARCH_LIST
+        value: "3.5;5.0;6.0;7.0;7.5"
+      - key: MAX_THREADS
+        value: "4"
+      - key: OMP_NUM_THREADS
+        value: "4"
+      - key: MKL_NUM_THREADS
+        value: "4"
     disk:
       name: cache
       mountPath: /tmp
-      sizeGB: 1
+      sizeGB: 2
     healthCheckPath: /health
