@@ -1,44 +1,29 @@
-FROM python:3.8.10
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    curl \
-    unzip \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+FROM python:3.8.10-slim
 
 WORKDIR /app
 
-# Install Python build tools
-RUN pip install --no-cache-dir \
-    setuptools==57.5.0 \
-    wheel==0.37.1 \
-    pip==23.3.1
+# Install system dependencies for librosa
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    libportaudio2 \
+    build-essential \
+    python3-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies in layers for better caching
+# Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Set environment variables
-ENV PYTHONPATH=/app \
-    PYTHONUNBUFFERED=1 \
-    TRANSFORMERS_CACHE=/app/model_cache \
-    TORCH_HOME=/app/model_cache
+# Install Python dependencies
+RUN pip install --no-cache-dir pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Create cache directory
-RUN mkdir -p /app/model_cache
+# Copy the rest of the application
+COPY backend/src backend/src
 
-# Pre-download the model
-RUN python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
-    model_name='CAMeL-Lab/bert-base-arabic-camelbert-mix'; \
-    tokenizer = AutoTokenizer.from_pretrained(model_name); \
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=7)"
-
-# Copy application code
-COPY backend/ backend/
-COPY runtime.txt .
+# Set Python path for module imports
+ENV PYTHONPATH=/app
 
 # Start the application
 CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "80"]

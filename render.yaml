@@ -1,34 +1,9 @@
 services:
   - type: web
     name: emotion-detection-api
-    env: python
-    buildCommand: |
-      echo "Installing dependencies..."
-      pip install --upgrade pip
-      pip install -r requirements.txt || { echo "Failed to install requirements"; exit 1; }
-      
-      echo "Checking directory structure..."
-      if [ -d "backend/src" ]; then
-        echo "Copying application files..."
-        cp -r backend/src/* .
-      else
-        echo "Error: backend/src directory not found!"
-        ls -la
-        exit 1
-      fi
-      
-      echo "Build completed successfully"
-    startCommand: |
-      echo "Starting application..."
-      echo "Current directory: $(pwd)"
-      echo "Directory contents: $(ls -la)"
-      export PYTHONPATH=$PYTHONPATH:/opt/render/project/src
-      echo "Using PYTHONPATH: $PYTHONPATH"
-      python -c "import sys; print('Python path:', sys.path); import os; print('Current dir:', os.getcwd()); print('Directory contents:', os.listdir('.'))"
-      uvicorn main:app --host 0.0.0.0 --port $PORT --reload --log-level debug
+    env: docker
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.8.10
-      - key: PYTHONPATH
-        value: /opt/render/project/src
-    healthCheckPath: /health  # Assuming there's a health endpoint, otherwise use /
+      - key: PORT
+        value: "80"
+    healthCheckPath: /health
