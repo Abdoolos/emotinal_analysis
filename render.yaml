@@ -1,9 +1,13 @@
 services:
   - type: web
     name: emotion-detection-api
-    env: docker
-    dockerfilePath: ./Dockerfile
+    env: python
+    buildCommand: |
+      curl -L https://github.com/Abdoolos/emotinal_analysis/releases/download/v1.0/deployment.zip -o deployment.zip
+      unzip deployment.zip
+      pip install -r requirements.txt
+    startCommand: cd backend/src && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PORT
-        value: "80"
+      - key: PYTHON_VERSION
+        value: 3.8.10
     healthCheckPath: /
