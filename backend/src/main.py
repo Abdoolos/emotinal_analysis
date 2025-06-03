@@ -2,8 +2,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from backend.src.models.emotion_classifier import EmotionClassifier
-from backend.src.utils.audio_processor import AudioProcessor
+from .models.emotion_classifier import EmotionClassifier
+from .utils.audio_processor import AudioProcessor
 import tempfile
 import os
 
@@ -51,6 +51,23 @@ async def read_root():
         "version": "1.0.0",
         "designer": "Abdullah Alawiss"
     }
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Render."""
+    try:
+        # Test model initialization
+        test_classifier = EmotionClassifier()
+        return {
+            "status": "healthy",
+            "loaded_models": ["emotion_classifier"],
+            "python_path": os.environ.get("PYTHONPATH", "not set")
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Health check failed: {str(e)}"
+        )
 
 @app.post("/predict/text")
 async def predict_emotion_from_text(request: TextRequest):
