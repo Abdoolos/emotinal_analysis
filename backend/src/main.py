@@ -2,8 +2,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from models.emotion_classifier import EmotionClassifier
-from utils.audio_processor import AudioProcessor
+from backend.src.models.emotion_classifier import EmotionClassifier
+from backend.src.utils.audio_processor import AudioProcessor
 import tempfile
 import os
 
