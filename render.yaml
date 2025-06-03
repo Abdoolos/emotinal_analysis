@@ -3,8 +3,10 @@ services:
     name: emotion-detection-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn backend.src.main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend/src && PYTHONPATH=$PYTHONPATH:backend/src uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.8.10
+      - key: PYTHONPATH
+        value: /opt/render/project/src/backend/src
     healthCheckPath: /

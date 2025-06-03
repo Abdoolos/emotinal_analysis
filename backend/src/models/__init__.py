@@ -1,3 +1,1 @@
-from .emotion_classifier import EmotionClassifier
-
-__all__ = ['EmotionClassifier']
+# Initialize models package
