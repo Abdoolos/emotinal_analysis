@@ -2,16 +2,10 @@ services:
   - type: web
     name: emotion-detection-api
     env: python
-    buildCommand: |
-      python -m pip install --upgrade pip==23.3.1 setuptools==68.0.0 wheel==0.40.0
-      pip cache purge
-      pip install -r requirements.txt --no-cache-dir
+    runtime: python3
+    buildCommand: pip install -r requirements.txt
     startCommand: cd backend/src && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.18
-      - key: PIP_VERSION
-        value: 23.3.1
-      - key: PYTHONPATH
-        value: /opt/render/project
+        value: 3.8.10
     healthCheckPath: /
