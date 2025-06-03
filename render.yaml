@@ -3,7 +3,23 @@ services:
     name: emotion-detection-api
     env: docker
     dockerfilePath: ./Dockerfile
+    plan: free
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    resources:
+      limits:
+        memory: 512M
+        cpu: 0.5
     envVars:
       - key: PORT
         value: "80"
+      - key: TRANSFORMERS_CACHE
+        value: /tmp/transformers_cache
+      - key: TORCH_HOME
+        value: /tmp/torch_home
+    disk:
+      name: cache
+      mountPath: /tmp
+      sizeGB: 1
     healthCheckPath: /health

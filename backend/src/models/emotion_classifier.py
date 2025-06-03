@@ -5,6 +5,7 @@ from typing import Dict, Optional
 import os
 import logging
 import time
+import gc
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ class EmotionClassifier:
         self.model = None
         self.max_retries = 3
         self.retry_delay = 5  # seconds
+        self.cache_dir = os.environ.get('TRANSFORMERS_CACHE', '/tmp/transformers_cache')
         
         # Define emotion labels
         self.emotion_labels = [
@@ -29,7 +31,7 @@ class EmotionClassifier:
             'محايد'   # neutral
         ]
         
-        # Initialize the model
+        # Initialize the model with optimizations
         self.initialize_model()
         
     def initialize_model(self):
@@ -38,20 +40,33 @@ class EmotionClassifier:
             try:
                 logger.info(f"Attempting to load model (attempt {attempt + 1}/{self.max_retries})")
                 
-                # Load tokenizer
+                # Clear memory
+                gc.collect()
+                torch.cuda.empty_cache() if torch.cuda.is_available() else None
+                
+                # Load tokenizer with memory optimization
                 if self.tokenizer is None:
                     self.tokenizer = AutoTokenizer.from_pretrained(
                         self.model_name,
-                        local_files_only=False
+                        local_files_only=False,
+                        cache_dir=self.cache_dir,
+                        low_cpu_mem_usage=True
                     )
                 
-                # Load model
+                # Load model with memory optimization
                 if self.model is None:
                     self.model = AutoModelForSequenceClassification.from_pretrained(
                         self.model_name,
                         num_labels=7,
-                        local_files_only=False
+                        local_files_only=False,
+                        cache_dir=self.cache_dir,
+                        low_cpu_mem_usage=True,
+                        torch_dtype=torch.float32
                     )
+                    
+                    # Move model to CPU explicitly and optimize memory
+                    self.model.to('cpu')
+                    self.model.eval()  # Set to evaluation mode
                 
                 logger.info("Model loaded successfully")
                 return True
@@ -83,6 +98,10 @@ class EmotionClassifier:
             # Preprocess the text
             text = self.preprocess_text(text)
             
+            # Clear memory before prediction
+            gc.collect()
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            
             # Tokenize and prepare for model
             inputs = self.tokenizer(
                 text,
@@ -104,6 +123,10 @@ class EmotionClassifier:
             for idx, emotion in enumerate(self.emotion_labels):
                 predictions[emotion] = float(probs[0][idx])
 
+            # Clear memory after prediction
+            del outputs
+            gc.collect()
+            
             return predictions
             
         except Exception as e:
