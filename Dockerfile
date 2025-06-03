@@ -2,7 +2,7 @@ FROM python:3.8.10-slim
 
 WORKDIR /app
 
-# Install system dependencies for librosa
+# Install system dependencies for librosa, pydub, and speech recognition
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsndfile1 \
@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
     pkg-config \
+    libasound2-dev \
+    portaudio19-dev \
+    flac \
+    libflac-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
