@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     curl \
     unzip \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -20,13 +21,24 @@ RUN pip install --no-cache-dir \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Set environment variables
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    TRANSFORMERS_CACHE=/app/model_cache \
+    TORCH_HOME=/app/model_cache
+
+# Create cache directory
+RUN mkdir -p /app/model_cache
+
+# Pre-download the model
+RUN python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
+    model_name='CAMeL-Lab/bert-base-arabic-camelbert-mix'; \
+    tokenizer = AutoTokenizer.from_pretrained(model_name); \
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=7)"
+
 # Copy application code
 COPY backend/ backend/
 COPY runtime.txt .
-
-# Set environment variables
-ENV PYTHONPATH=/app \
-    PYTHONUNBUFFERED=1
 
 # Start the application
 CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "80"]
